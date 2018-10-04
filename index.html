@@ -107,11 +107,42 @@
       var triangleVertexColorBuffer
       var squareVertexPositionBuffer
       var squareVertexColorBuffer
+
+      function matrixTranslating(mat,x,y,z){
+        for(var i=0;i<mat.length/3;i++)
+        {
+          mat[i*3]+=x
+          mat[i*3+1]+=y
+          mat[i*3+2]+=z
+        }
+        return mat
+      }
+      function matrixScaling(mat,size){
+        for(var i=0;i<mat.length;i++)mat[i]*=size
+        return mat
+      }
+      function matrixRotating(mat,deg,xCore,yCore)
+      {
+        degRad = deg * (Math.PI/180)
+        for(var i=0;i<mat.length/3;i++)
+        {
+          var x = mat[i*3]-xCore
+          var y = mat[i*3+2]-yCore
+          mat[i*3]=Math.cos(degRad)*(x)-Math.sin(degRad)*(y) +xCore
+          mat[i*3+2]=Math.sin(degRad)*(x)+Math.cos(degRad)*(y) +yCore
+        }
+        return mat
+      }
+      var triangleVerticesCount = 0
+      var squareVerticesCount = 0
+      var vertices1 = []
+      var vertices2 = []
+
       function initBuffers() {
         // Triangle Position
         triangleVertexPositionBuffer = gl.createBuffer()
         gl.bindBuffer(gl.ARRAY_BUFFER, triangleVertexPositionBuffer)
-        var vertices = [
+        vertices1 = [
           -1.0,  1.0,  0.0,
           -1.0, 0.5,  0.0,
           1.0,  1.0, 0.0,
@@ -121,29 +152,25 @@
           1.0, -0.5, 0.0,
           1.0, -1.0, 0.0
         ]
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW)
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices1), gl.STATIC_DRAW)
+        triangleVerticesCount = vertices1.length/3
         triangleVertexPositionBuffer.itemSize = 3
-        triangleVertexPositionBuffer.numItems = 8
+        triangleVertexPositionBuffer.numItems = triangleVerticesCount
         // Triangle Color
         triangleVertexColorBuffer = gl.createBuffer()
         gl.bindBuffer(gl.ARRAY_BUFFER, triangleVertexColorBuffer)
-        var colors = [
-          1.0, 0.0, 0.0, 1.0,
-          0.0, 1.0, 0.0, 1.0,
-          0.0, 0.0, 1.0, 1.0,
-          1.0, 0.0, 0.0, 1.0,
-          0.0, 1.0, 0.0, 1.0,
-          0.0, 0.0, 1.0, 1.0,
-          1.0, 0.0, 0.0, 1.0,
-          0.0, 1.0, 0.0, 1.0
-        ]
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW)
+        var color = []
+        for (var i=0; i < triangleVerticesCount; i++) {
+            color = color.concat([Math.random(),Math.random(),Math.random(), 1.0]);
+        }
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(color), gl.STATIC_DRAW)
         triangleVertexColorBuffer.itemSize = 4
-        triangleVertexColorBuffer.numItems = 8
+        triangleVertexColorBuffer.numItems = triangleVerticesCount
+
         // Square Position
         squareVertexPositionBuffer = gl.createBuffer()
         gl.bindBuffer(gl.ARRAY_BUFFER, squareVertexPositionBuffer)
-        vertices = [
+        vertices2 = [
           -2.0, 2.0, 2.0,
           2.0, 2.0, 2.0,
           2.0, -2.0, 2.0,
@@ -161,7 +188,9 @@
           2.0, 2.0, -2.0,
           -2.0, 2.0, -2.0
         ]
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW)
+
+        
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices2), gl.STATIC_DRAW)
         squareVertexPositionBuffer.itemSize = 3
         squareVertexPositionBuffer.numItems = 16
         // Square Color
@@ -175,6 +204,40 @@
         squareVertexColorBuffer.itemSize = 4;
         squareVertexColorBuffer.numItems = 16;
       }
+      
+      var cenX=0.0
+      var cenY=0.0
+      var cenZ=0.0
+      var turn = [1,1,1]
+      var lrTurn = 1.0
+      function letterMove()
+      {
+        gl.bindBuffer(gl.ARRAY_BUFFER, triangleVertexPositionBuffer)
+        vertices1 = matrixTranslating(vertices1,turn[0]*0.01,turn[1]*0.01,turn[2]*0.01)
+        cenX+=(turn[0]*0.01)
+        cenY+=(turn[1]*0.01)
+        cenZ+=(turn[2]*0.01)
+        vertices1 = matrixRotating(vertices1,lrTurn*1.5,cenX,cenZ)
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices1), gl.STATIC_DRAW)
+      }
+
+      var pointArr = [0,15,18,21,33,45]
+      function detectionCollision()
+      {
+        for(var i = 0;i<turn.length;i++)
+        {
+          for(var k=0;k<pointArr.length;k++)
+          {
+            if(vertices1[pointArr[k]+i]>=3 || vertices1[pointArr[k]+i]<=-3)
+            {
+              turn[i]*=-1
+              lrTurn*=-1
+              break
+            }
+          }
+        }
+      }
+
       var rTri = 0
       var rSquare = 0
       function drawScene() {
@@ -182,7 +245,9 @@
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
         mat4.perspective(pMatrix, glMatrix.toRadian(45), gl.viewportWidth / gl.viewportHeight, 0.1, 100.0)
         mat4.identity(mvMatrix)
-        mat4.translate(mvMatrix, mvMatrix, [0.0, 0.0, -10.0])
+        mat4.translate(mvMatrix, mvMatrix, [0.0, 0.0, -9.5])
+        detectionCollision()
+        letterMove()
         mvPushMatrix()
         mat4.rotate(mvMatrix, mvMatrix, glMatrix.toRadian(rTri), [0.0, 1.0, 0.0])
         //mat4.rotateY(mvMatrix, mvMatrix, glMatrix.toRadian(rTri))
